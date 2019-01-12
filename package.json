@@ -1,0 +1,16 @@
+{
+  "name": "MonologueLibrarian",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/agawley/MonologueLibrarian.git",
+  "license": "MIT",
+  "scripts": {
+    "test": "TZ=Europe/London jest"
+  },
+  "devDependencies": {
+    "jest": "^23.6.0"
+  },
+  "dependencies": {
+    "csv-parse": "^4.3.0"
+  }
+}
