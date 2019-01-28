@@ -1,7 +1,4 @@
 const monologue = require('../index');
-const parse = require('csv-parse')
-const assert = require('assert')
-
 
 describe('Monologue tests', () => {
   describe('Drive', () => {

@@ -2,7 +2,7 @@ const fs = require('fs');
 const parse = require('csv-parse/lib/sync');
 const assert = require('assert');
 
-var file = fs.readFileSync('./data.csv', 'utf8');
+var file = fs.readFileSync('./data1.csv', 'utf8');
 const records = parse(file, []);
 
 
@@ -17,7 +17,7 @@ class Monologue {
   }
 
   toString() {
-    return `Monologue Patch ${this.patchNumber}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\n\n`;
+    return `Monologue Patch ${this.patchNumber}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nFilter:\n${this.filter}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\n\n`;
   }
 }
 
@@ -93,11 +93,11 @@ class DutySwitch extends Switch {
   getReadableValue() {
     switch(this.value) {
       case 0:
-        return 'Sync';
+        return 'Ring';
       case 1:
         return 'None';
       case 2:
-        return 'Ring';
+        return 'Sync';
       default:
         return 'Unknown';
     }
@@ -188,16 +188,17 @@ class LFOModeSwitch extends Switch {
 }
 
 class Oscilator {
-  constructor(wave, shape, level, pitch, duty) {
+  constructor(wave, shape, level, pitch, duty, octave) {
     this.wave = wave;
     this.shape = shape;
     this.level = level;
     this.pitch = pitch || new Knob('Pitch', 0);
     this.duty = duty || new DutySwitch(1);
+    this.octave = octave || new OctaveSwitch(0);
   }
 
   toString() {
-    return `\tWave: ${this.wave}\n\tShape: ${this.shape}\n\tLevel: ${this.level}\n\tPitch: ${this.pitch}\n\tDuty: ${this.duty}`;
+    return `\tWave: ${this.wave}\n\tShape: ${this.shape}\n\tLevel: ${this.level}\n\tPitch: ${this.pitch}\n\tDuty: ${this.duty}\n\tOctave: ${this.octave}`;
   }
 
 }
@@ -207,6 +208,11 @@ class Filter {
     this.cutoff = cutoff;
     this.resonance = resonance;
   }
+
+  toString() {
+    return `\tCutoff: ${this.cutoff}\n\tResonance: ${this.resonance}\n`;
+  }
+
 }
 
 class Envelope {
@@ -239,8 +245,13 @@ class LFO {
 
 function decodeSysEx(data) {
 
+  let array = [];
+
   for (let dataArray of data) {
+
     dataArray = dataArray.map(x => x * 1);
+    //dataArray.splice(8,1); // remove global sesyex fields
+    //dataArray.splice(9,1);
     const drive = driveFromSysEx(dataArray);
     const oscOne = oscOneFromSysEx(dataArray);
     const oscTwo = oscTwoFromSysEx(dataArray);
@@ -248,7 +259,6 @@ function decodeSysEx(data) {
     const envelope = envFromSysEx(dataArray);
     const lfo = lfoFromSysEx(dataArray);
 
-    console.log(dataArray[27]);
     const monologue = new Monologue(dataArray[7], drive, [oscOne, oscTwo], filter, envelope, lfo);
 
     console.log(monologue.toString());
@@ -257,30 +267,30 @@ function decodeSysEx(data) {
 }
 
 function driveFromSysEx(dataArray) {
-  const value = korgValueUsingSet(dataArray, 41, 39, [19, 23, 27, 31, 51, 55, 59, 63, 83, 115]);
+  console.log(dataArray[41]);
+  console.log(dataArray[41]);
+  const value = korgValueFromRaw(dataArray[41], dataArray[39] % 4 >= 2);
   return new Knob('Drive', value);
 }
 
 function oscOneFromSysEx(dataArray) {
 
   // Waveform
-  const testArray = [17, 19, 25, 27, 40, 49, 51, 57, 81, 83, 89];
-  let waveValue = 0;
-  if(dataArray[42] > 63) {
-    waveValue = 1;
-  } else if (testArray.includes(dataArray[42])) {
-    waveValue = 2;
+  let waveValue = 0; // Sawtooth
+  if(dataArray[42] % 128 >= 64) {
+    waveValue = 1; // Triangle
+  } else if (dataArray[39] % 8 < 4) {
+    waveValue = 2; // Square
   }
   const wave = new WaveTypeSwitch(0, waveValue);
 
   // Shape
-  const shapePastHalfway = ((dataArray[23] / 8) % 2 != 0) ? true : false;
-  const shapeValue = korgValueFromRaw(dataArray[27], shapePastHalfway);
+  // TODO: there is another value involved here but I don't understand how
+  const shapeValue = korgValueFromRaw(dataArray[27], dataArray[23] % 16 >= 8);
   const shape = new Knob('Shape', shapeValue);
 
   // level
-  const levelPastHalfway = (dataArray[23] > 64);
-  const levelValue = korgValueFromRaw(dataArray[30], levelPastHalfway);
+  const levelValue = korgValueFromRaw(dataArray[30], dataArray[23] % 128 >= 64);
   const level = new Knob('Level', levelValue);
 
   return new Oscilator(wave, shape, level);
@@ -289,48 +299,54 @@ function oscOneFromSysEx(dataArray) {
 function oscTwoFromSysEx(dataArray) {
 
   // Waveform
-  const testArray = [19, 23, 25, 29, 31, 57, 59, 61, 89, 91, 93];
-  let waveValue = 2;
-  if(dataArray[43] > 63) {
-    waveValue = 1;
-  } else if (testArray.includes(dataArray[39])) {
-    waveValue = 0;
+  let waveValue = 0; // Sawtooth
+  if(dataArray[43] % 128 >= 64) {
+    waveValue = 1; // Triangle
+  } else if (dataArray[39] % 16 < 4) {
+    waveValue = 2; // Noise
   }
   const wave = new WaveTypeSwitch(1, waveValue);
 
   // Shape
-  const shapeValue = korgValueUsingSet(dataArray, 29, 23, [4, 20, 68, 72, 76, 84, 88, 92]);
+
+  const shapeValue = korgValueFromRaw(dataArray[29], dataArray[23] % 64 >= 32);
   const shape = new Knob('Shape', shapeValue);
 
   // level
-  const levelPastHalfway = (dataArray[31] % 2 != 0) ? true : false;
-  const levelValue = korgValueFromRaw(dataArray[32], levelPastHalfway);
+  const levelValue = korgValueFromRaw(dataArray[32], dataArray[31] % 2 != 0);
   const level = new Knob('Level', levelValue);
 
   // Sync
-  let syncValue = 2;
-  if ([102,106].includes(dataArray[44])) {
-    syncValue = 0;
-  } else if ([101,105].includes(dataArray[44])) {
-    syncValue = 1;
-  }
+  let syncValue = dataArray[44] % 4;
   const duty = new DutySwitch(syncValue);
 
   // pitch
-  const pitchValue = korgValueUsingSet(dataArray, 28, 23, [18, 20, 52, 60, 84, 92, 116, 124]);
+  // TODO: there is another value involved here but I don't understand how
+  const pitchValue = korgValueFromRaw(dataArray[28], dataArray[23] % 32 >= 16);
   const pitch = new Knob('Pitch', pitchValue);
 
-  return new Oscilator(wave, shape, level, pitch, duty);
+  // Octave
+  let octaveValue = 3;
+  if (dataArray[43] % 64 < 16) {
+    octaveValue = 0;
+  } else if (dataArray[43] % 64 < 32) {
+    octaveValue = 1;
+  } else if (dataArray[43] % 64 < 48) {
+    octaveValue = 2;
+  }
+  const octave = new OctaveSwitch(octaveValue);
+
+  return new Oscilator(wave, shape, level, pitch, duty, octave);
 }
 
 function filterFromSysEx(dataArray) {
 
   // cutoff
-  const cutoffValue = korgValueUsingSet(dataArray, 33, 31, [34, 35, 38, 39, 42, 43, 47, 48, 50, 51, 55, 58, 62, 63, 98, 99, 102, 103, 110, 111, 114, 126, 127]);
+  const cutoffValue = korgValueFromRaw(dataArray[33], dataArray[31] % 4 >= 2);
   const cutoff = new Knob('Cutoff', cutoffValue);
 
   // resonance
-  const resoValue = korgValueUsingSet(dataArray, 34, 31, [32, 33, 34, 37, 39, 49, 51, 53, 97, 98, 99, 109, 114]);
+  const resoValue = korgValueFromRaw(dataArray[34], dataArray[31] % 8 >= 4);
   const resonance = new Knob('Resonance', resoValue);
 
   return new Filter(cutoff, resonance);
@@ -343,24 +359,24 @@ function envFromSysEx(dataArray) {
   const type = new EnvelopeSwitch(dataArray[46] % 4);
 
   // attack
-  const attackValue = korgValueUsingSet(dataArray, 35, 31, [32, 40, 41, 42, 43, 45, 47, 59, 60, 61, 107, 122, 125, 127]);
+  const attackValue = korgValueFromRaw(dataArray[35], dataArray[31] % 16 >= 8);
   const attack = new Knob('Attack', attackValue);
 
   // delay
-  const decayValue = korgValueUsingSet(dataArray, 36,31, [27, 48, 49, 50, 51, 52, 53, 55, 58, 59, 61, 115, 116, 125, 127]);
+  const decayValue = korgValueFromRaw(dataArray[36] ,dataArray[31] % 32 >= 16);
   const decay = new Knob('Decay', decayValue);
 
   //intensity
-  const sign = [32, 34, 36, 37, 39, 42, 45, 50, 52, 53, 59, 61, 98, 99, 104, 109, 114, 120, 122, 124, 125, 126, 127].includes(dataArray[31]) ? +1 : -1;
+  const sign = ((dataArray[31] % 64) >= 32) ? +1 : -1;
   const absIntValue = korgValueFromRaw(dataArray[37]);
   const intensity = new Knob('Intensity', absIntValue * sign);
 
   // target
   let targetValue = 0
-  if (dataArray[39] > 80) {
-    taregtValue = 2;
-  } else if (dataArray[46] > 63) {
-    targetValue = 1;
+  if (dataArray[39] % 128 >= 64) {
+    taregtValue = 1;
+  } else if (dataArray[46] % 128 >= 64) {
+    targetValue = 2;
   }
   const target = new TargetSwitch(TargetSwitch.Type.ENVELOPE, targetValue);
 
@@ -389,19 +405,15 @@ function lfoFromSysEx(dataArray) {
 
   // mode
   const modeRaw = dataArray[49];
-  let mode;
-  if([0,1,2].includes(modeRaw)) {
-    mode = new LFOModeSwitch(2);
-  } else if ([4,5,6].includes(modeRaw)) {
-    mode = new LFOModeSwitch(1);
-  } else if ([8,9,10].includes(modeRaw)) {
+  let mode = new LFOModeSwitch(2);
+  if(dataArray[49] % 16 >= 8) {
     mode = new LFOModeSwitch(0);
-  } else {
-    mode = new LFOModeSwitch(99);
+  } else if (dataArray[49] % 16 >= 4) {
+    mode = new LFOModeSwitch(1);
   }
 
   // Rate
-  const rateValue = korgValueFromRaw(dataArray[38], dataArray[31] > 63)
+  const rateValue = korgValueFromRaw(dataArray[38], dataArray[31] % 128 >= 64)
   const rate = new Knob('Rate', rateValue);
 
   // Intensity
@@ -410,16 +422,12 @@ function lfoFromSysEx(dataArray) {
   const intensity = new Knob('Intensity', absIntValue * sign);
 
   // TargetSwitch
-  let target;
+  let target = new TargetSwitch(TargetSwitch.Type.LFO, 0);
   const targetRaw = dataArray[49];
-  if (0 <= targetRaw && targetRaw <= 15) {
-    target = new TargetSwitch(TargetSwitch.Type.LFO, 0);
-  } else if (16 <= targetRaw && targetRaw <= 31) {
-    target = new TargetSwitch(TargetSwitch.Type.LFO, 2);
-  } else if (32 <= targetRaw && targetRaw <= 47) {
+  if (dataArray[49] % 64 >= 32) {
     target = new TargetSwitch(TargetSwitch.Type.LFO, 1);
-  } else {
-    target = new TargetSwitch(TargetSwitch.Type.LFO, 99);
+  } else if (dataArray[49] % 64 >= 16) {
+    target = new TargetSwitch(TargetSwitch.Type.LFO, 2);
   }
 
   return new LFO(wave, mode, rate, intensity, target);
@@ -435,19 +443,6 @@ function korgValueFromRaw(value, pastHalfway) {
   } else {
     return Math.round((value * 1024.0 / 127.0));
   }
-
-}
-
-function korgValueFromRawUsingSet(value, testValue, testSet) {
-
-  const pastHalfway = testSet.includes(testValue);
-  return korgValueFromRaw(value, pastHalfway);
-
-}
-
-function korgValueUsingSet(dataArray, valueIndex, testValueIndex, testSet) {
-
-  return korgValueFromRawUsingSet(dataArray[valueIndex], dataArray[testValueIndex], testSet);
 
 }
 
