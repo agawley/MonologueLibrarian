@@ -2,6 +2,7 @@ const fs = require('fs');
 const parse = require('csv-parse/lib/sync');
 const assert = require('assert');
 
+// data.csv is just the output of console.log-ing the WebMidi output of the SysEx dump from the Minilogue
 var file = fs.readFileSync('./data1.csv', 'utf8');
 const records = parse(file, []);
 
