@@ -238,7 +238,7 @@ class WaveTypeSwitch extends Switch {
 
   getReadableValue() {
     switch(this.value) {
-      case 3:
+      case 2:
         return 'Sawtooth';
       case 1:
         return 'Triangle';
