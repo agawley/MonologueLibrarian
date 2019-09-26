@@ -1,16 +1,38 @@
 const { bin, getBits, addLowerBits, addHighBit } = require('./utilities')
 
 class Monologue {
-  constructor(patchName, drive, oscilators, filter, envelope, lfo) {
+
+  constructor(patchName, drive, oscilators, filter, envelope, lfo, misc) {
     this.patchName = patchName;
     this.drive = drive
     this.oscilators = oscilators;
     this.filter = filter;
     this.envelope = envelope;
     this.lfo = lfo;
+    this.misc = misc;
   }
 
+
   static createFromSysEx(data) {
+
+    const SLIDER_ASSIGN_MATRIX = {
+      13 : 'VCO 1 PITCH',
+      14 : 'VCO 1 SHAPE',
+      17 : 'VCO 2 PITCH',
+      18 : 'VCO 2 SHAPE',
+      21 : 'VCO 1 LEVEL',
+      22 : 'VCO 1 LEVEL',
+      23 : 'CUTOFF',
+      24 : 'RESONANCE',
+      26 : 'ATTACK',
+      27 : 'DECAY',
+      28 : 'EG INT',
+      31 : 'LFO RATE',
+      32 : 'LFO INT',
+      40 : 'PORTAMENT',
+      56 : 'PITCH BEND',
+      57 : 'GATE TIME'
+    };
 
     const name = data.slice(4,16).map(x => String.fromCharCode(x)).join('');
     const drive = new Knob('Drive', addLowerBits(data[29], data[35], 6));
@@ -20,8 +42,14 @@ class Monologue {
                               new Knob('Resonance', addLowerBits(data[23], data[33], 6)));
     const envelope = envFromSysEx(data);
     const lfo = lfoFromSysEx(data);
+    const misc = new MiscParams(new OnOffSwitch('BPM Sync', getBits(data[44], 3, 3)),
+                                new OnOffSwitch('Portament Mode', getBits(data[44], 0, 0)),
+                                new Knob('Potament Time', data[41]),
+                                new PercentSwitch('Cutoff Velocity', getBits(data[44], 4, 5)),
+                                new PercentSwitch('Cutoff Key Track', getBits(data[44], 6, 7)),
+                                new Switch('Slider Assign', SLIDER_ASSIGN_MATRIX[data[42]]));
 
-    return new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo);
+    return new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo, misc);
 
     /* Convenience functions nested for privacy */
 
@@ -116,11 +144,10 @@ class Monologue {
       return new LFO(wave, mode, rate, intensity, target);
     }
 
-
   }
 
   toString() {
-    return `Monologue Patch ${this.patchName}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nFilter:\n${this.filter}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\n\n`;
+    return `Monologue Patch ${this.patchName}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nFilter:\n${this.filter}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\nMisc Params:\n${this.misc}\n`;
   }
 }
 
@@ -180,6 +207,26 @@ class Switch extends Knob {
 
   toString() {
     return `Switch { name: ${this.name}, value: ${this.getReadableValue()}}`
+  }
+}
+
+class PercentSwitch extends Switch {
+  constructor(name, value) {
+    super(name, value);
+  }
+
+  getReadableValue() {
+    return `${this.value * 50}%`;
+  }
+}
+
+class OnOffSwitch extends Switch {
+  constructor(name, value) {
+    super(name, value);
+  }
+
+  getReadableValue() {
+    return `${this.value ? 'On' : 'Off'}`;
   }
 }
 
@@ -389,5 +436,21 @@ class LFO {
     return `\tWave: ${this.wave}\n\tMode: ${this.mode}\n\tRate: ${this.rate}\n\tInt: ${this.intensity}\n\tTarget: ${this.target}`;
   }
  }
+
+class MiscParams {
+  constructor(bpmSync, portamentMode, portamentTime, cutoffVelocity, cutoffKeyTrack, sliderAssign) {
+    this.bpmSync = bpmSync;
+    this.portamentMode = portamentMode;
+    this.portamentTime = portamentTime;
+    this.cutoffVelocity = cutoffVelocity;
+    this.cutoffKeyTrack = cutoffKeyTrack;
+    this.sliderAssign = sliderAssign;
+  }
+
+  toString() {
+    return `\tBPM Sync: ${this.bpmSync}\n\tPortament Mode: ${this.portamentMode}\n\tPortament Time: ${this.portamentTime}\n\tCutoff Velocity: ${this.cutoffVelocity}\n\tCutoff Key Track: ${this.cutoffKeyTrack}\n\tSlider Assign: ${this.sliderAssign}`;
+  }
+
+}
 
 module.exports = Monologue;

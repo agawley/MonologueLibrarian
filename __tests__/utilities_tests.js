@@ -23,7 +23,7 @@ describe('Utilities tests', () => {
       const expectedResponse = 3 // 0b011
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
-    it('returns the number represented by the binary digits at a start  slice', () => {
+    it('returns the number represented by the binary digits at a start slice', () => {
       const testValue = 157; // 0b10011101
       const start = 5;
       const end = 7;
@@ -37,6 +37,21 @@ describe('Utilities tests', () => {
       const expectedResponse = 13 // 0b1101
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
+    it('returns the number represented by the binary digits at a one bit', () => {
+      const testValue = 157; // 0b10011101
+      const start = 1;
+      const end = 1;
+      const expectedResponse = 0 // 0b0
+      expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
+    });
+    it('works for zero', () => {
+      const testValue = 0; // 0b00000000
+      const start = 6;
+      const end = 7;
+      const expectedResponse = 0 // 0b0
+      expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
+    });
+
   });
   describe('addLowerBits()', () => {
     it('correctly returns 10-bit number from 2 8-bit numbers using last two digits of second as low bits', () => {
