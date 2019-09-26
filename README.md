@@ -3,16 +3,21 @@
 **To see your current patch...**
 
 On your computer:
-`git clone https://github.com/agawley/MonologueLibrarian.git
-cd MonologueLibrarian
-yarn
-node index.js`
+```
+> git clone https://github.com/agawley/MonologueLibrarian.git
+> cd MonologueLibrarian
+> yarn
+> node index.js
+```
 
 On the Monologue:
-`Edit Mode > Program Edit > Program Dump > Write`
+```
+Edit Mode > Program Edit > Program Dump > Write
+```
 
 **Sample output**
 
+```
 Monologue Patch Init Program
 ---------
 
@@ -54,3 +59,4 @@ Misc Params:
         Cutoff Velocity: Switch { name: Cutoff Velocity, value: 100%}
         Cutoff Key Track: Switch { name: Cutoff Key Track, value: 50%}
         Slider Assign: Switch { name: Slider Assign, value: VCO 1 SHAPE}
+```
