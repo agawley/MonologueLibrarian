@@ -10,6 +10,115 @@ class Monologue {
     this.lfo = lfo;
   }
 
+  static createFromSysEx(data) {
+
+    const name = data.slice(4,16).map(x => String.fromCharCode(x)).join('');
+    const drive = new Knob('Drive', addLowerBits(data[29], data[35], 6));
+    const oscOne = oscOneFromSysEx(data);
+    const oscTwo = oscTwoFromSysEx(data);
+    const filter = new Filter(new Knob('Cutoff', addLowerBits(data[22], data[33], 4)),
+                              new Knob('Resonance', addLowerBits(data[23], data[33], 6)));
+    const envelope = envFromSysEx(data);
+    const lfo = lfoFromSysEx(data);
+
+    return new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo);
+
+    /* Convenience functions nested for privacy */
+
+    function oscOneFromSysEx(data) {
+
+      // Waveform
+      const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO1, getBits(data[30], 6, 7));
+
+      // Shape
+      const shapeValue = addLowerBits(data[17], data[30], 2)
+      const shape = new Knob('Shape', shapeValue);
+
+      // Level
+      const levelValue = addLowerBits(data[20], data[33], 0)
+      const level = new Knob('Level', levelValue);
+
+      return new Oscilator(wave, shape, level);
+    }
+
+    function oscTwoFromSysEx(data) {
+
+      // Waveform
+      const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO2, getBits(data[31], 6, 7));
+
+      // Shape
+      const shapeValue = addLowerBits(data[19], data[31], 2)
+      const shape = new Knob('Shape', shapeValue);
+
+      // Level
+      const levelValue = addLowerBits(data[21], data[33], 2)
+      const level = new Knob('Level', levelValue);
+
+      // Sync
+      let syncValue = getBits(data[32], 0, 1);
+      const duty = new DutySwitch(syncValue);
+
+      // pitch
+      const pitchValue = addLowerBits(data[18], data[31], 0);
+      const pitch = new Knob('Pitch', pitchValue);
+
+      // Octave
+      let octaveValue = getBits(data[31], 4, 5);
+      const octave = new OctaveSwitch(octaveValue);
+
+      return new Oscilator(wave, shape, level, pitch, duty, octave);
+    }
+
+    function envFromSysEx(data) {
+
+      // type
+      const type = new EnvelopeSwitch(getBits(data[34], 0, 1));
+
+      // attack
+      const attackValue = addLowerBits(data[24], data[34], 2);
+      const attack = new Knob('Attack', attackValue);
+
+      // delay
+      const decayValue = addLowerBits(data[25], data[34], 4);
+      const decay = new Knob('Decay', decayValue);
+
+      //intensity
+      const absIntValue = addLowerBits(data[26], data[35], 0);
+      const intensity = new Knob('Intensity', absIntValue-512);
+
+      // target
+      const target = new TargetSwitch(TargetSwitch.Type.ENVELOPE, getBits(data[34], 6, 7));
+
+      return new Envelope(type, attack, decay, intensity, target);
+
+    }
+
+    function lfoFromSysEx(data) {
+
+      // wave
+      const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.LFO, getBits(data[36], 0, 1));
+
+      // mode
+      const modeRaw = getBits(data[36], 2, 3);
+      const mode = new LFOModeSwitch(modeRaw);
+
+      // Rate
+      const rateValue = addLowerBits(data[27], data[35], 2);
+      const rate = new Knob('Rate', rateValue);
+
+      // Intensity
+      const absIntValue = addLowerBits(data[28], data[35], 4);
+      const intensity = new Knob('Intensity', absIntValue-512);
+
+      // TargetSwitch
+      const target = new TargetSwitch(TargetSwitch.Type.LFO, getBits(data[36], 4, 5));
+
+      return new LFO(wave, mode, rate, intensity, target);
+    }
+
+
+  }
+
   toString() {
     return `Monologue Patch ${this.patchName}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nFilter:\n${this.filter}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\n\n`;
   }
@@ -281,129 +390,4 @@ class LFO {
   }
  }
 
-function decodeSysEx(data) {
-
-  const name = data.slice(4,16).map(x => String.fromCharCode(x)).join('');
-  const drive = driveFromSysEx(data);
-  const oscOne = oscOneFromSysEx(data);
-  const oscTwo = oscTwoFromSysEx(data);
-  const filter = filterFromSysEx(data);
-  const envelope = envFromSysEx(data);
-  const lfo = lfoFromSysEx(data);
-
-  return monologue = new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo);
-
-}
-
-function driveFromSysEx(data) {
-  const value = addLowerBits(data[29], data[35], 6);
-  return new Knob('Drive', value);
-}
-
-function oscOneFromSysEx(data) {
-
-  // Waveform
-  const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO1, getBits(data[30], 6, 7));
-
-  // Shape
-  const shapeValue = addLowerBits(data[17], data[30], 2)
-  const shape = new Knob('Shape', shapeValue);
-
-  // Level
-  const levelValue = addLowerBits(data[20], data[33], 0)
-  const level = new Knob('Level', levelValue);
-
-  return new Oscilator(wave, shape, level);
-}
-
-function oscTwoFromSysEx(data) {
-
-  // Waveform
-  const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO2, getBits(data[31], 6, 7));
-
-  // Shape
-  const shapeValue = addLowerBits(data[19], data[31], 2)
-  const shape = new Knob('Shape', shapeValue);
-
-  // Level
-  const levelValue = addLowerBits(data[21], data[33], 2)
-  const level = new Knob('Level', levelValue);
-
-  // Sync
-  let syncValue = getBits(data[32], 0, 1);
-  const duty = new DutySwitch(syncValue);
-
-  // pitch
-  const pitchValue = addLowerBits(data[18], data[31], 0);
-  const pitch = new Knob('Pitch', pitchValue);
-
-  // Octave
-  let octaveValue = getBits(data[31], 4, 5);
-  const octave = new OctaveSwitch(octaveValue);
-
-  return new Oscilator(wave, shape, level, pitch, duty, octave);
-}
-
-function filterFromSysEx(data) {
-
-  // cutoff
-  const cutoffValue = addLowerBits(data[22], data[33], 4);
-  const cutoff = new Knob('Cutoff', cutoffValue);
-
-  // resonance
-  const resoValue = addLowerBits(data[23], data[33], 6);
-  const resonance = new Knob('Resonance', resoValue);
-
-  return new Filter(cutoff, resonance);
-
-}
-
-function envFromSysEx(data) {
-
-  // type
-  const type = new EnvelopeSwitch(getBits(data[34], 0, 1));
-
-  // attack
-  const attackValue = addLowerBits(data[24], data[34], 2);
-  const attack = new Knob('Attack', attackValue);
-
-  // delay
-  const decayValue = addLowerBits(data[25], data[34], 4);
-  const decay = new Knob('Decay', decayValue);
-
-  //intensity
-  const absIntValue = addLowerBits(data[26], data[35], 0);
-  const intensity = new Knob('Intensity', absIntValue-512);
-
-  // target
-  const target = new TargetSwitch(TargetSwitch.Type.ENVELOPE, getBits(data[34], 6, 7));
-
-  return new Envelope(type, attack, decay, intensity, target);
-
-}
-
-function lfoFromSysEx(data) {
-
-  // wave
-  const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.LFO, getBits(data[36], 0, 1));
-
-  // mode
-  const modeRaw = getBits(data[36], 2, 3);
-  const mode = new LFOModeSwitch(modeRaw);
-
-  // Rate
-  const rateValue = addLowerBits(data[27], data[35], 2);
-  const rate = new Knob('Rate', rateValue);
-
-  // Intensity
-  const absIntValue = addLowerBits(data[28], data[35], 4);
-  const intensity = new Knob('Intensity', absIntValue-512);
-
-  // TargetSwitch
-  const target = new TargetSwitch(TargetSwitch.Type.LFO, getBits(data[36], 4, 5));
-
-  return new LFO(wave, mode, rate, intensity, target);
-}
-
-
-module.exports = { decodeSysEx, driveFromSysEx, oscOneFromSysEx, oscTwoFromSysEx, filterFromSysEx };
+module.exports = Monologue;
