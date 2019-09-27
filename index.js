@@ -1,5 +1,3 @@
-const fs = require('fs');
-const parse = require('csv-parse/lib/sync');
 const transformDataFrom7BitTo8Bit = require('./utilities').transformDataFrom7BitTo8Bit;
 const Monologue = require('./monologue');
 
