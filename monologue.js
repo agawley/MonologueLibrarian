@@ -1,8 +1,12 @@
-const { bin, getBits, addLowerBits, addHighBit } = require('./utilities')
+const { bin, getBits, addLowerBits, addHighBit } = require('./utilities');
+
+Array.prototype.toString = function() {
+  return this.join('');
+};
 
 class Monologue {
 
-  constructor(patchName, drive, oscilators, filter, envelope, lfo, misc) {
+  constructor(patchName, drive, oscilators, filter, envelope, lfo, misc, sequencer) {
     this.patchName = patchName;
     this.drive = drive
     this.oscilators = oscilators;
@@ -10,6 +14,7 @@ class Monologue {
     this.envelope = envelope;
     this.lfo = lfo;
     this.misc = misc;
+    this.sequencer = sequencer;
   }
 
 
@@ -48,8 +53,9 @@ class Monologue {
                                 new PercentSwitch('Cutoff Velocity', getBits(data[44], 4, 5)),
                                 new PercentSwitch('Cutoff Key Track', getBits(data[44], 6, 7)),
                                 new Switch('Slider Assign', SLIDER_ASSIGN_MATRIX[data[42]]));
+    const sequencer = sequencerFromSysEx(data);
 
-    return new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo, misc);
+    return new Monologue(name, drive, [oscOne, oscTwo], filter, envelope, lfo, misc, sequencer);
 
     /* Convenience functions nested for privacy */
 
@@ -144,10 +150,87 @@ class Monologue {
       return new LFO(wave, mode, rate, intensity, target);
     }
 
+    function sequencerFromSysEx(data) {
+
+      const MOTION_PARAM_MATRIX = {
+        0 : 'None',
+        13 : 'VCO 1 PITCH',
+        14 : 'VCO 1 SHAPE',
+        15 : 'VCO 1 OCTAVE',
+        16 : 'VCO 1 WAVE',
+        17 : 'VCO 2 PITCH',
+        18 : 'VCO 2 SHAPE',
+        19 : 'VCO 2 OCTAVE',
+        20 : 'VCO 2 WAVE',
+        21 : 'VCO 1 LEVEL',
+        22 : 'VCO 2 LEVEL',
+        23 : 'CUTOFF',
+        24 : 'RESONANCE',
+        25 : 'SYNC/RING',
+        26 : 'ATTACK',
+        27 : 'DECAY',
+        28 : 'EG INT',
+        29 : 'EG TYPE',
+        30 : 'EG TARGET',
+        31 : 'LFO RATE',
+        32 : 'LFO INT',
+        33 : 'LFO TARGET',
+        34 : 'LFO TYPE',
+        35 : 'LFO MODE',
+        37 : 'DRIVE',
+        40 : 'PORTAMENT',
+        56 : 'PITCH BEND',
+        57 : 'GATE TIME'
+      };
+
+      let steps = []
+      for (let i = 0; i < 16; i++) {
+        let note = new Note(new Key(data[96+(i*22)]),
+                            new Knob("Velocity", data[96+2+(i*22)]),
+                            new GateTimeKnob(getBits(data[96+4+(i*22)],0,6)),
+                            new OnOffSwitch('Trigger', getBits(data[96+4+(i*22)],7,7)));
+        let motionSlotsData = [[],[],[],[]]
+        for (let j = 0; j < 4; j++) {
+          motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 1`, data[96+6+(j*4)+(i*22)]));
+          motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 2`, data[96+7+(j*4)+(i*22)]));
+          motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 3`, data[96+8+(j*4)+(i*22)]));
+          motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 4`, data[96+9+(j*4)+(i*22)]));
+          // add the tabs to each motionSlotData Array toString method. Ugly Hack Alert!
+          motionSlotsData[j].toString = function () { return this.join('\t') };
+        }
+        // add the tabs to the motionSlotsData Array toString method. Ugly Hack Alert!
+        motionSlotsData.toString = function () { return this.join('\t') };
+        let sequencerEvent = new SequencerEvent(note, motionSlotsData);
+        let step = new Step((i+1),
+                            new OnOffSwitch(`On/Off`, getBits(data[64+Math.floor(i/16)],i%8,i%8)),
+                            new OnOffSwitch(`Motion On/Off`, getBits(data[66+Math.floor(i/16)],i%8,i%8)),
+                            new OnOffSwitch(`Slide On/Off`, getBits(data[68+Math.floor(i/16)],i%8,i%8)),
+                            sequencerEvent);
+        steps.push(step)
+      }
+      let motionSlotParams = [];
+      for (let i = 0; i < 4; i++) {
+        motionSlotParams.push(new MotionSlotParams((i+1),
+                             new OnOffSwitch('On/Off', getBits(data[72+(i*2)],0,0)),
+                             new OnOffSwitch('Smooth On/Off', getBits(data[72+(i*2)],1,1)),
+                             new Switch('Parameter', MOTION_PARAM_MATRIX[data[73+(i*2)]])));
+      }
+
+      const bpm = parseInt(bin(getBits(data[53],0,3)) + bin(data[52]),2)/10;
+
+      return new Sequencer(new Knob('BPM', bpm),
+                              new Knob('Step Length', data[54]),
+                              new StepResolutionSwith(data[55]),
+                              new Knob('Swing', data[56] > 75 ? data[56] - 256 : data[56]),
+                              new Knob('Default Gate Time', data[57]/72),
+                              motionSlotParams,
+                              steps);
+    }
+
   }
 
   toString() {
-    return `Monologue Patch ${this.patchName}\n---------\nDrive: ${this.drive}\nVCO1:\n${this.oscilators[0]}\nVCO2:\n${this.oscilators[1]}\nFilter:\n${this.filter}\nEnvelope:\n${this.envelope}\nLFO:\n${this.lfo}\nMisc Params:\n${this.misc}\n`;
+    return `MONOLOGUE PATCH: ${this.patchName}\n----------------------------\n\n${this.drive}VCO1:\n${this.oscilators[0]}VCO2:\n${this.oscilators[1]}Filter:\n${this.filter}Envelope:\n${this.envelope}LFO:\n${this.lfo}Misc Params:\n${this.misc}\n${this.sequencer}`;
   }
 }
 
@@ -162,11 +245,34 @@ class Knob {
   }
 
   toString() {
-    return `Knob { name: ${this.name}, value: ${this.getReadableValue()}}`
+    return `${this.name}: ${this.getReadableValue()}\n`
   }
 
   getName() {
     return this.name;
+  }
+}
+
+class Key extends Knob {
+  constructor(value) {
+    super('Key', value);
+  }
+
+  getReadableValue() {
+    const octave = Math.floor((this.value / 12) - 1);
+    const noteName = 'C C#D D#E F F#G G#A A#B '.substr((this.value % 12) * 2, 2);
+    return octave >= 0 ? noteName.trim() + octave : '--';
+  }
+
+}
+
+class GateTimeKnob extends Knob {
+  constructor(value) {
+    super('GateTime', value);
+  }
+
+  getReadableValue() {
+    return this.value < 73 ? `${Math.floor(this.value * 100 / 72)}%` : 'TIE';
   }
 }
 
@@ -206,7 +312,7 @@ class Switch extends Knob {
   }
 
   toString() {
-    return `Switch { name: ${this.name}, value: ${this.getReadableValue()}}`
+    return `${this.name}: ${this.getReadableValue()}\n`
   }
 }
 
@@ -230,9 +336,19 @@ class OnOffSwitch extends Switch {
   }
 }
 
+class StepResolutionSwith extends Switch {
+  constructor(value) {
+    super('Step Resolution', value);
+  }
+
+  getReadableValue() {
+    return `1/${2^this.value}`;
+  }
+}
+
 class WaveTypeSwitch extends Switch {
   constructor(oscilator, value) {
-    super(WaveTypeSwitch.OSCILATOR.properties[oscilator].name, value);
+    super('Wave', value);
     this.oscilator = oscilator
   }
 
@@ -306,7 +422,7 @@ class OctaveSwitch extends Switch {
 
 class EnvelopeSwitch extends Switch {
   constructor(value) {
-    super('Envelope', value);
+    super('Envelope Type', value);
   }
 
   getReadableValue() {
@@ -330,7 +446,7 @@ class EnvelopeSwitch extends Switch {
 
 class TargetSwitch extends Switch {
   constructor(type, value) {
-    super(TargetSwitch.Type.properties[type].name, value);
+    super('Target', value);
     this.type = type;
   }
 
@@ -392,7 +508,7 @@ class Oscilator {
   }
 
   toString() {
-    return `\tWave: ${this.wave}\n\tShape: ${this.shape}\n\tLevel: ${this.level}\n\tPitch: ${this.pitch}\n\tDuty: ${this.duty}\n\tOctave: ${this.octave}`;
+    return `\t${this.wave}\t${this.shape}\t${this.level}\t${this.pitch}\t${this.duty}\t${this.octave}`;
   }
 
 }
@@ -404,7 +520,7 @@ class Filter {
   }
 
   toString() {
-    return `\tCutoff: ${this.cutoff}\n\tResonance: ${this.resonance}\n`;
+    return `\t${this.cutoff}\t${this.resonance}`;
   }
 
 }
@@ -419,7 +535,7 @@ class Envelope {
   }
 
   toString() {
-    return `\tType: ${this.type}\n\tAttack: ${this.attack}\n\tDecay: ${this.decay}\n\tInt: ${this.intensity}\n\tTarget: ${this.target}`;
+    return `\t${this.type}\t${this.attack}\t${this.decay}\t${this.intensity}\t${this.target}`;
   }
 }
 
@@ -433,7 +549,7 @@ class LFO {
   }
 
   toString() {
-    return `\tWave: ${this.wave}\n\tMode: ${this.mode}\n\tRate: ${this.rate}\n\tInt: ${this.intensity}\n\tTarget: ${this.target}`;
+    return `\t${this.wave}\t${this.mode}\t${this.rate}\t${this.intensity}\t${this.target}`;
   }
  }
 
@@ -448,9 +564,81 @@ class MiscParams {
   }
 
   toString() {
-    return `\tBPM Sync: ${this.bpmSync}\n\tPortament Mode: ${this.portamentMode}\n\tPortament Time: ${this.portamentTime}\n\tCutoff Velocity: ${this.cutoffVelocity}\n\tCutoff Key Track: ${this.cutoffKeyTrack}\n\tSlider Assign: ${this.sliderAssign}`;
+    return `\t${this.bpmSync}\t${this.portamentMode}\t${this.portamentTime}\t${this.cutoffVelocity}\t${this.cutoffKeyTrack}\t${this.sliderAssign}`;
   }
 
 }
+
+class Sequencer {
+  constructor(bpm, stepLength, stepResolution, swing, defaultGateTime, motionSlotParams, steps) {
+    this.bpm = bpm;
+    this.stepLength = stepLength;
+    this.stepResolution = stepResolution;
+    this.swing = swing;
+    this.defaultGateTime = defaultGateTime;
+    this.motionSlotParams = motionSlotParams; // 4 slot array
+    this.steps = steps; // 16 slot array
+  }
+
+  toString() {
+    return `SEQUENCER\n---------\n${this.bpm}${this.stepLength}${this.stepResolution}${this.swing}${this.defaultGateTime}\n${this.motionSlotParams}${this.steps}`;
+  }
+}
+
+
+
+class MotionSlotParams {
+  constructor(slotNumber, active, smooth, parameter) {
+    this.slotNumber = slotNumber;
+    this.active = active;
+    this.smooth = smooth;
+    this.parameter = parameter;
+  }
+
+  toString() {
+    return `Motion Slot ${this.slotNumber}\n\t${this.active}\t${this.smooth}\t${this.parameter}\n`;
+  }
+}
+
+class Step {
+  constructor(stepNumber, active, motionActive, slideActive, event) {
+    this.stepNumber = stepNumber;
+    this.active = active;
+    this.motionActive = motionActive;
+    this.slideActive = slideActive;
+    this.event = event;
+  }
+
+  toString() {
+    return `Step ${this.stepNumber}\n\t${this.active}\t${this.motionActive}\t${this.slideActive}\n${this.event}`;
+  }
+}
+
+class SequencerEvent {
+  constructor(note, motionSlotsData) {
+    this.note = note;
+    this.motionSlotsData = motionSlotsData; // 4-Array of 4-Arrays
+  }
+
+  toString() {
+    return `${this.note}\n\t${this.motionSlotsData}\n`;
+  }
+}
+
+class Note {
+  constructor(key, velocity, gateTime, trigger) {
+    this.key = key;
+    this.velocity = velocity;
+    this.gateTime = gateTime;
+    this.trigger = trigger;
+  }
+
+  toString() {
+    return `\t${this.key}\t${this.velocity}\t${this.gateTime}\t${this.trigger}`;
+  }
+}
+
+
+
 
 module.exports = Monologue;
