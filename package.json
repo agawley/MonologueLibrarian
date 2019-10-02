@@ -25,6 +25,15 @@
         "node": true,
         "es6": true
     },
-    "extends": "eslint:recommended"
+    "extends": "eslint:recommended",
+    "globals": {
+        "it": false,
+        "describe": false,
+        "expect": false,
+        "jest": false,
+        "afterAll": false,
+        "beforeAll": false,
+        "chrome": false
+    }
   }
 }
