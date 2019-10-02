@@ -8,10 +8,23 @@
     "test": "TZ=Europe/London jest"
   },
   "devDependencies": {
+    "eslint": "^6.5.1",
     "jest": "^23.6.0"
   },
   "dependencies": {
     "csv-parse": "^4.3.0",
     "easymidi": "^1.0.2"
+  },
+  "eslintConfig": {
+    "parserOptions": {
+        "ecmaVersion": 6,
+        "sourceType": "module"
+    },
+    "env": {
+        "browser": true,
+        "node": true,
+        "es6": true
+    },
+    "extends": "eslint:recommended"
   }
 }

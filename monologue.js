@@ -1,4 +1,4 @@
-const { bin, getBits, addLowerBits, addHighBit } = require('./utilities');
+const { bin, getBits, addLowerBits } = require('./utilities');
 
 Array.prototype.toString = function() {
   return this.join('');
@@ -277,7 +277,7 @@ class GateTimeKnob extends Knob {
 }
 
 // TODO: work out smooth function for Pitch
-class PitchKnob extends Knob {
+/*class PitchKnob extends Knob {
   constructor(value) {
     super('Pitch', value);
   }
@@ -304,7 +304,7 @@ class PitchKnob extends Knob {
     }
   }
 
-}
+}*/
 
 class Switch extends Knob {
   constructor(name, value) {
@@ -429,16 +429,12 @@ class EnvelopeSwitch extends Switch {
       switch(this.value) {
         case 0:
           return 'Gate';
-          break;
         case 1:
           return 'AGD';
-          break;
         case 2:
           return 'AD';
-          break;
         default:
           return 'Unknown';
-          break;
       }
   }
 
@@ -483,16 +479,12 @@ class LFOModeSwitch extends Switch {
     switch(this.value) {
       case 0:
         return '1-Shot';
-        break;
       case 1:
         return 'Slow';
-        break;
       case 2:
         return 'Fast';
-        break;
       default:
         return 'Unknown';
-        break;
     }
   }
 }
