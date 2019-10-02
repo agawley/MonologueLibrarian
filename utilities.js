@@ -27,16 +27,16 @@ function transformDataFrom7BitTo8Bit(records) {
 
   // remove the the header and footer bytes
   const sBitValues = records.slice(7,records.length - 1);
-  let setArray = [];
+  const setArray = [];
   let index = 0;
   while (index < sBitValues.length) {
     setArray.push(sBitValues.slice(index, 8+index));
     index += 8;
   }
-  const eBitValues = []
-  for (let set of setArray) {
+  const eBitValues = [];
+  for (const set of setArray) {
     for (let j = 1; j < 8; j++) {
-      eBitValues.push(addHighBit(set[j]*1, set[0]*1, j-1))
+      eBitValues.push(addHighBit(set[j]*1, set[0]*1, j-1));
     }
   }
   return eBitValues;

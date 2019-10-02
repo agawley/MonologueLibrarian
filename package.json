@@ -34,6 +34,15 @@
         "afterAll": false,
         "beforeAll": false,
         "chrome": false
-    }
+    },
+    "rules": {
+        "semi": ["error", "always"],
+        "no-var": "error",
+        "prefer-const": ["error", {
+            "destructuring": "any",
+            "ignoreReadBeforeAssign": false
+        }],
+        "sort-imports": "error"
+      }
   }
 }

@@ -6,12 +6,12 @@ describe('Utilities tests', () => {
   describe('bin()', () => {
     it('returns 8 bit zero-padded binary representation by default', () => {
       const testValue = 100;
-      const expectedResponse = "01100100"
+      const expectedResponse = "01100100";
       expect(util.bin(testValue)).toEqual(expectedResponse);
     });
     it('returns 7 bit zero-padded binary representation when passed padding variable', () => {
       const testValue = 20;
-      const expectedResponse = "0010100"
+      const expectedResponse = "0010100";
       expect(util.bin(testValue, 7)).toEqual(expectedResponse);
     });
   });
@@ -20,35 +20,35 @@ describe('Utilities tests', () => {
       const testValue = 157; // 0b10011101
       const start = 3;
       const end = 5;
-      const expectedResponse = 3 // 0b011
+      const expectedResponse = 3; // 0b011
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
     it('returns the number represented by the binary digits at a start slice', () => {
       const testValue = 157; // 0b10011101
       const start = 5;
       const end = 7;
-      const expectedResponse = 4 // 0b100
+      const expectedResponse = 4; // 0b100
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
     it('returns the number represented by the binary digits at an end slice', () => {
       const testValue = 157; // 0b10011101
       const start = 0;
       const end = 3;
-      const expectedResponse = 13 // 0b1101
+      const expectedResponse = 13; // 0b1101
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
     it('returns the number represented by the binary digits at a one bit', () => {
       const testValue = 157; // 0b10011101
       const start = 1;
       const end = 1;
-      const expectedResponse = 0 // 0b0
+      const expectedResponse = 0; // 0b0
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
     it('works for zero', () => {
       const testValue = 0; // 0b00000000
       const start = 6;
       const end = 7;
-      const expectedResponse = 0 // 0b0
+      const expectedResponse = 0; // 0b0
       expect(util.getBits(testValue, start, end)).toEqual(expectedResponse);
     });
 
@@ -84,7 +84,7 @@ describe('Utilities tests', () => {
   describe('transformDataFrom7BitTo8Bit()', () => {
     it('correctly transforms the test data', () => {
       const records = [ /* headers */ 240,66,49,0,1,68,64, /* set 1 */ 0,80,82,79,71,73,110,105, /* set 2 */ 84,97,109,0,127,0,0,127,247];
-      const expectedResponse = [/* set 1 unchanged */ 80,82,79,71,73,110,105, /* set 2 updated*/ 97,109,128,127,128,0,255 ]
+      const expectedResponse = [/* set 1 unchanged */ 80,82,79,71,73,110,105, /* set 2 updated*/ 97,109,128,127,128,0,255 ];
       /*
       Set 2 updates:
       High Bit Number: 84 0b01010100

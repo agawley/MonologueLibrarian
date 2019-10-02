@@ -8,7 +8,7 @@ class Monologue {
 
   constructor(patchName, drive, oscilators, filter, envelope, lfo, misc, sequencer) {
     this.patchName = patchName;
-    this.drive = drive
+    this.drive = drive;
     this.oscilators = oscilators;
     this.filter = filter;
     this.envelope = envelope;
@@ -65,11 +65,11 @@ class Monologue {
       const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO1, getBits(data[30], 6, 7));
 
       // Shape
-      const shapeValue = addLowerBits(data[17], data[30], 2)
+      const shapeValue = addLowerBits(data[17], data[30], 2);
       const shape = new Knob('Shape', shapeValue);
 
       // Level
-      const levelValue = addLowerBits(data[20], data[33], 0)
+      const levelValue = addLowerBits(data[20], data[33], 0);
       const level = new Knob('Level', levelValue);
 
       return new Oscilator(wave, shape, level);
@@ -81,15 +81,15 @@ class Monologue {
       const wave = new WaveTypeSwitch(WaveTypeSwitch.OSCILATOR.VCO2, getBits(data[31], 6, 7));
 
       // Shape
-      const shapeValue = addLowerBits(data[19], data[31], 2)
+      const shapeValue = addLowerBits(data[19], data[31], 2);
       const shape = new Knob('Shape', shapeValue);
 
       // Level
-      const levelValue = addLowerBits(data[21], data[33], 2)
+      const levelValue = addLowerBits(data[21], data[33], 2);
       const level = new Knob('Level', levelValue);
 
       // Sync
-      let syncValue = getBits(data[32], 0, 1);
+      const syncValue = getBits(data[32], 0, 1);
       const duty = new DutySwitch(syncValue);
 
       // pitch
@@ -97,7 +97,7 @@ class Monologue {
       const pitch = new Knob('Pitch', pitchValue);
 
       // Octave
-      let octaveValue = getBits(data[31], 4, 5);
+      const octaveValue = getBits(data[31], 4, 5);
       const octave = new OctaveSwitch(octaveValue);
 
       return new Oscilator(wave, shape, level, pitch, duty, octave);
@@ -183,32 +183,32 @@ class Monologue {
         57 : 'GATE TIME'
       };
 
-      let steps = []
+      const steps = [];
       for (let i = 0; i < 16; i++) {
-        let note = new Note(new Key(data[96+(i*22)]),
+        const note = new Note(new Key(data[96+(i*22)]),
                             new Knob("Velocity", data[96+2+(i*22)]),
                             new GateTimeKnob(getBits(data[96+4+(i*22)],0,6)),
                             new OnOffSwitch('Trigger', getBits(data[96+4+(i*22)],7,7)));
-        let motionSlotsData = [[],[],[],[]]
+        const motionSlotsData = [[],[],[],[]];
         for (let j = 0; j < 4; j++) {
           motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 1`, data[96+6+(j*4)+(i*22)]));
           motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 2`, data[96+7+(j*4)+(i*22)]));
           motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 3`, data[96+8+(j*4)+(i*22)]));
           motionSlotsData[j].push(new Knob(`Motion Slot ${j+1} Data 4`, data[96+9+(j*4)+(i*22)]));
           // add the tabs to each motionSlotData Array toString method. Ugly Hack Alert!
-          motionSlotsData[j].toString = function () { return this.join('\t') };
+          motionSlotsData[j].toString = function () { return this.join('\t'); };
         }
         // add the tabs to the motionSlotsData Array toString method. Ugly Hack Alert!
-        motionSlotsData.toString = function () { return this.join('\t') };
-        let sequencerEvent = new SequencerEvent(note, motionSlotsData);
-        let step = new Step((i+1),
+        motionSlotsData.toString = function () { return this.join('\t'); };
+        const sequencerEvent = new SequencerEvent(note, motionSlotsData);
+        const step = new Step((i+1),
                             new OnOffSwitch(`On/Off`, getBits(data[64+Math.floor(i/16)],i%8,i%8)),
                             new OnOffSwitch(`Motion On/Off`, getBits(data[66+Math.floor(i/16)],i%8,i%8)),
                             new OnOffSwitch(`Slide On/Off`, getBits(data[68+Math.floor(i/16)],i%8,i%8)),
                             sequencerEvent);
-        steps.push(step)
+        steps.push(step);
       }
-      let motionSlotParams = [];
+      const motionSlotParams = [];
       for (let i = 0; i < 4; i++) {
         motionSlotParams.push(new MotionSlotParams((i+1),
                              new OnOffSwitch('On/Off', getBits(data[72+(i*2)],0,0)),
@@ -245,7 +245,7 @@ class Knob {
   }
 
   toString() {
-    return `${this.name}: ${this.getReadableValue()}\n`
+    return `${this.name}: ${this.getReadableValue()}\n`;
   }
 
   getName() {
@@ -312,7 +312,7 @@ class Switch extends Knob {
   }
 
   toString() {
-    return `${this.name}: ${this.getReadableValue()}\n`
+    return `${this.name}: ${this.getReadableValue()}\n`;
   }
 }
 
@@ -349,7 +349,7 @@ class StepResolutionSwith extends Switch {
 class WaveTypeSwitch extends Switch {
   constructor(oscilator, value) {
     super('Wave', value);
-    this.oscilator = oscilator
+    this.oscilator = oscilator;
   }
 
   getReadableValue() {
@@ -451,11 +451,11 @@ class TargetSwitch extends Switch {
       case 0:
         return 'Cutoff';
       case 1:
-        return this.type == TargetSwitch.Type.LFO ? 'Shape' : 'Pitch 2'
+        return this.type == TargetSwitch.Type.LFO ? 'Shape' : 'Pitch 2';
       case 2:
         return 'Pitch';
       default:
-        return "Unknown"
+        return "Unknown";
     }
   }
 
