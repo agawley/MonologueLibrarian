@@ -12,7 +12,7 @@
     "jest": "^23.6.0"
   },
   "dependencies": {
-    "csv-parse": "^4.3.0",
+    "csv-parse": "^4.4.6",
     "easymidi": "^1.0.2"
   },
   "eslintConfig": {
